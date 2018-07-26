@@ -12,13 +12,13 @@ const lastOf = list => list[list.length - 1]
 
 class Block {
 
-  constructor(index, previousHash, timestamp, data, nonce=0, hash='') {
+  constructor(index, previousHash, timestamp, data, nonce = 0, hash = '') {
     this.index = index
     this.previousHash = previousHash
     this.timestamp = timestamp
     this.data = data
     this.nonce = nonce
-    this.hash = hash
+    this.hash = this.calculateHash()
   }
 
   calculateHash() {
@@ -26,6 +26,14 @@ class Block {
     return crypto
       .createHmac('sha256', JSON.stringify(data))
       .digest('hex')
+  }
+
+  mineBlock(difficulty) {
+    while (this.hash.substring(0, difficulty) !== Array(difficulty + 1).join("0")) {
+      this.nonce++;
+      this.hash = this.calculateHash();
+    }
+    console.log("Block mined: " + this.hash);
   }
 
   static get GENESIS() {
@@ -53,6 +61,7 @@ class Server {
 
   constructor() {
     this.blocks = [Block.GENESIS]
+    this.difficulty = 4;
     this.peers = {}
     this.state = {}
 
@@ -66,6 +75,7 @@ class Server {
     this.httpServer.get('/blocks', this.showBlocks.bind(this))
     this.httpServer.post('/blocks', this.processBlocks.bind(this))
     this.httpServer.post('/transactions', this.processTransaction.bind(this))
+    this.httpServer.post('/accounts', this.createAccount.bind(this))
   }
 
   start() {
@@ -103,6 +113,14 @@ class Server {
   processTransaction(req, resp) {
 
     // - Verify signature
+    const verify = crypto.createVerify('SHA256');
+
+    verify.write('some data to sign');
+    verify.end();
+
+    const publicKey = getPublicKeySomehow();
+    const signature = getSignatureToVerify();
+    console.log(verify.verify(publicKey, signature));
     // - Verify balance
 
     // - Current block
@@ -130,24 +148,43 @@ class Server {
     this.currentBlock = Block.fromPrevious(this.currentBlock)
   }
 
+  getLastedBlock() {
+    return this.blocks[this.blocks.length - 1]
+  }
   processBlocks(req, resp) {
     // TODO
-    // block.hash.startsWith('000')
-    // block.hash === block.calculateHash()
-    // block.previousHash === this.blocks[block.index - 1].hash
+    block.hash.startsWith('000')
+    block.hash === block.calculateHash()
+    block.previousHash === this.blocks[block.index - 1].hash
 
-    // block.index > lastOf(this.blocks).index
-
-    this.blocks.push(block)
+    block.index > lastOf(this.blocks).index
+    // newBlock.previousHash = this.getLastedBlock().hash;
+    // newBlock.mineBlock(this.difficulty);
+    // this.blocks.push(newBlock)
   }
 
   createAccount(req, resp) {
     // TODO
     // - Generate key pair based on password
     // - Response
+    // let password = crypto.createHmac('sha256', req.body.password).digest('hex');
+    var password = crypto.createHmac('sha256', req.body.password).digest('hex');
+    let diffHell = crypto.createDiffieHellman(password)
+    diffHell.generateKeys('hex');
+
+    return resp.send(`Address:${diffHell.getPublicKey('hex')} Private Key:${diffHell.getPrivateKey('hex')}`)
   }
 }
 
+// let testing = new Server();
 
+// console.log("Mining block 1...")
+// testing.processBlocks(new Block(1, null, "17/07/2018", "Hello", 0, null));
+
+// console.log("Mining block 2...")
+// testing.processBlocks(new Block(2, null, "17/07/2018", "Holle", 0, null));
+
+// console.log(testing.blocks)
+// testing.createAccount(1, 1)
 exports.Block = Block
 exports.Server = Server
